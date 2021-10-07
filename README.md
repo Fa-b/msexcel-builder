@@ -269,7 +269,7 @@ then the method will be called with that argument, e.g.
 ### Sheet.formula(col, row, str) 
 Create a cell formula
 ```
-sheet1.formula(3, 3, "=A3*B2")
+sheet1.formula(3, 3, "A3*B2")
 ```
 
 
