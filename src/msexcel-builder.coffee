@@ -257,7 +257,7 @@ class Sheet
     if (typeof str == 'string')
       @formulas = @formulas || []
       @formulas[row] = @formulas[row] || []
-      sheet_idx = i for sheet in @book.sheets when sheet.name == @name
+      sheet_idx = i for sheet, i in @book.sheets when sheet.name == @name
       @book.cc.add_ref(sheet_idx, col, row)
       @formulas[row][col] = str
 
@@ -455,11 +455,10 @@ class CalcChain
   toxml: ()->
     cc = xml.create('calcChain', {version: '1.0', encoding: 'UTF-8', standalone: true})
     cc.att('xmlns', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main')
-      
-    for key in @cache
-      cells = @cache[key]
-      for i in [0..@cells]
-        cc.ele('c', { r: '' + cells[i], i: '' + key })
+    
+    for key, val of @cache
+      for el in val
+        cc.ele('c', { r: '' + el, i: '' + key })
           
     return cc.end()
     
