@@ -407,8 +407,7 @@ class Sheet
           c = r.ele('c', {r: '' + tool.i2a(j) + i})
           c.att('s', '' + (sid - 1)) if sid isnt 1
           if (@formulas[i] && @formulas[i][j])
-            c.ele('f', { ca: '1' }, '' + @formulas[i][j])
-            c.att('t', 'str')
+            c.ele('f', '' + @formulas[i][j])
             c.ele('v')
           else if ix.dataType == 'string'
             c.att('t', 's')
@@ -455,11 +454,10 @@ class CalcChain
   toxml: ()->
     cc = xml.create('calcChain', {version: '1.0', encoding: 'UTF-8', standalone: true})
     cc.att('xmlns', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main')
-      
-    for key in @cache
-      cells = @cache[key]
-      for i in [0..@cells]
-        cc.ele('c', { r: '' + cells[i], i: '' + key })
+    
+    for key, val of @cache
+      for el in val
+        cc.ele('c', { r: '' + el, i: '' + key })
           
     return cc.end()
     
