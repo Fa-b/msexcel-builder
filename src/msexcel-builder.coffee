@@ -232,29 +232,65 @@ class Sheet
 
 
   set: (col, row, str) ->
+    if !@data[row][col].hasOwnProperty('init')
+        @data[row][col].init = {};
     if str instanceof Date
       @set col, row, JSDateToExcel str
-      # for some reason the number format doesn't apply if the fill is not also set. BUG? Mystery?
-      @fill col, row,
-        type: "solid",
-        fgColor: "FFFFFF"
-      @numberFormat col, row, 'd-mmm'
+      @numberFormat col, row, 'm/d/yy'
     else if typeof str == 'object'
       for key of str
         @[key] col, row, str[key]
-    else if  typeof str == 'string'
-      if str != null and str != ''
-        @data[row][col].v = @book.ss.str2id('' + str)
-      return @data[row][col].dataType = 'string'
-    else if typeof str == 'number'
-      @data[row][col].v = str
-      return @data[row][col].dataType = 'number'
     else
-      @data[row][col].v = str
+      @data[row][col].init.set = str;
+      if typeof str == 'number'
+        @data[row][col].v = str
+        return @data[row][col].dataType = 'number'
+      else if  typeof str == 'string' and str != null and str != ''
+        @data[row][col].v = @book.ss.str2id('' + str)
+        return @data[row][col].dataType = 'string'
+      else
+        @data[row][col].v = 0
     return
+
+  find: (str)->
+    ret = undefined;
+    if @book.ss.cache.hasOwnProperty(str)
+      id = @book.ss.cache[str];
+      ret = [];
+      for i in [1..@rows]
+        for j in [1..@cols]
+          if @data[i][j].v == id
+            ret.push { row: i, col: j}
+    return ret;
+
+  append_below: (row, sheet) ->
+    @rows = @rows + sheet.rows + (row - this.rows)
+
+    # Workbook and Sheetname are inherited
+    k = 1
+    for i in [row..@rows]
+      @data[i] = {}
+      for j in [1..@cols]
+        @data[i][j] = {v: 0}
+        if sheet.data.hasOwnProperty(k) and sheet.data[k].hasOwnProperty(j) and sheet.data[k][j].hasOwnProperty('init')
+          @set j, i, sheet.data[k][j].init
+          if sheet.data[k][j].init.hasOwnProperty('formula')
+            res = sheet.data[k][j].init.formula.replace /(([A-Z]+)(\d+))/g, (match, p1, p2, p3) =>
+                p2 + ((parseInt p3) + (row - 1))
+            @formula j, i, res
+
+      # col widths are inherited
+
+      # untested:
+      @row_ht[i] = sheet.row_ht[k];
+
+      k++;
+    
+    @merge { row: merge.from.row + row - 1, col: merge.from.col }, { row: merge.to.row + row - 1, col: merge.to.col } for merge in sheet.merges
 
   formula: (col, row, str) ->
     if (typeof str == 'string')
+      @data[row][col].init.formula = str
       @formulas = @formulas || []
       @formulas[row] = @formulas[row] || []
       sheet_idx = i for sheet, i in @book.sheets when sheet.name == @name
@@ -271,27 +307,35 @@ class Sheet
     @row_ht[row] = ht
 
   font: (col, row, font_s)->
+    @data[row][col].init.font = font_s
     @styles['font_' + col + '_' + row] = @book.st.font2id(font_s)
 
   fill: (col, row, fill_s)->
+    @data[row][col].init.fill = fill_s
     @styles['fill_' + col + '_' + row] = @book.st.fill2id(fill_s)
 
   border: (col, row, bder_s)->
+    @data[row][col].init.border = bder_s
     @styles['bder_' + col + '_' + row] = @book.st.bder2id(bder_s)
 
   numberFormat: (col, row, numfmt_s)->
+    @data[row][col].init.numberFormat = numfmt_s
     @styles['numfmt_' + col + '_' + row] = @book.st.numfmt2id(numfmt_s)
 
   align: (col, row, align_s)->
+    @data[row][col].init.align = align_s
     @styles['algn_' + col + '_' + row] = align_s
 
   valign: (col, row, valign_s)->
+    @data[row][col].init.valign = valign_s
     @styles['valgn_' + col + '_' + row] = valign_s
 
   rotate: (col, row, textRotation)->
+    @data[row][col].init.rotate = textRotation
     @styles['rotate_' + col + '_' + row] = textRotation
 
   wrap: (col, row, wrap_s)->
+    @data[row][col].init.wrap = wrap_s
     @styles['wrap_' + col + '_' + row] = wrap_s
 
   autoFilter: (filter_s) ->
