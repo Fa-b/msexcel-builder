@@ -527,7 +527,7 @@ class Style
   font2id: (font)->
     font or= {}
     font.bold or= '-'
-    font.iter or= '-'
+    font.iter or= font.italic or '-'
     font.sz or= '11'
     font.color or= '-'
     font.name or= 'Calibri'
@@ -634,10 +634,10 @@ class Style
       e = fonts.ele('font')
       e.ele('b') if o.bold isnt '-'
       e.ele('i') if o.iter isnt '-'
-      e.ele('u') if o.iter isnt '-'
-      e.ele('strike') if o.iter isnt '-'
-      e.ele('outline') if o.iter isnt '-'
-      e.ele('shadow') if o.iter isnt '-'
+      e.ele('u') if o.underline isnt '-'
+      e.ele('strike') if o.strike isnt '-'
+      e.ele('outline') if o.outline isnt '-'
+      e.ele('shadow') if o.shadow isnt '-'
 
       e.ele('sz', {val: o.sz})
       e.ele('color', {rgb: o.color}) if o.color isnt '-'
