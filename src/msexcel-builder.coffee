@@ -257,7 +257,7 @@ class Sheet
     if (typeof str == 'string')
       @formulas = @formulas || []
       @formulas[row] = @formulas[row] || []
-      sheet_idx = i for sheet in @book.sheets when sheet.name == @name
+      sheet_idx = i for sheet, i in @book.sheets when sheet.name == @name
       @book.cc.add_ref(sheet_idx, col, row)
       @formulas[row][col] = str
 
