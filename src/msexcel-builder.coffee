@@ -50,6 +50,10 @@ class ContentTypes
       ContentType: 'application/vnd.openxmlformats-officedocument.theme+xml'
     })
     types.ele('Override', {
+      PartName: '/xl/calcChain.xml',
+      ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.calcChain+xml'
+    });
+    types.ele('Override', {
       PartName: '/xl/styles.xml',
       ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml'
     })
@@ -177,6 +181,11 @@ class XlRels
       Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings',
       Target: 'sharedStrings.xml'
     })
+    rs.ele('Relationship', {
+      Id: 'rId' + (this.book.sheets.length + 4),
+      Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/calcChain',
+      Target: 'calcChain.xml'
+    });
     return rs.end()
 
 class SharedStrings
@@ -248,6 +257,8 @@ class Sheet
     if (typeof str == 'string')
       @formulas = @formulas || []
       @formulas[row] = @formulas[row] || []
+      sheet_idx = i for sheet, i in @book.sheets when sheet.name == @name
+      @book.cc.add_ref(sheet_idx, col, row)
       @formulas[row][col] = str
 
   merge: (from_cell, to_cell) ->
@@ -395,14 +406,16 @@ class Sheet
         if (ix.v isnt null and ix.v isnt undefined) or (sid isnt 1)
           c = r.ele('c', {r: '' + tool.i2a(j) + i})
           c.att('s', '' + (sid - 1)) if sid isnt 1
-          if ix.dataType == 'string'
+          if (@formulas[i] && @formulas[i][j])
+            c.ele('f', '' + @formulas[i][j])
+            c.ele('v')
+          else if ix.dataType == 'string'
             c.att('t', 's')
             c.ele('v', '' + (ix.v - 1))
           else if ix.dataType == 'number'
             c.ele 'v', '' + ix.v
 
-          if (@formulas[i] && @formulas[i][j])
-            c.ele('f',@formulas[i][j])
+          
 
     if @merges.length > 0
       mc = ws.ele('mergeCells', {count: @merges.length})
@@ -427,6 +440,27 @@ class Sheet
 
     return ws.end()
 
+class CalcChain
+
+  constructor: (@book)->
+    @cache = {}
+    
+  add_ref: (idx, col, row)->
+    num = idx + 1
+    if !@cache.hasOwnProperty(num)
+      @cache[num] = []
+    @cache[num].push(tool.i2a(col) + row)
+      
+  toxml: ()->
+    cc = xml.create('calcChain', {version: '1.0', encoding: 'UTF-8', standalone: true})
+    cc.att('xmlns', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main')
+    
+    for key, val of @cache
+      for el in val
+        cc.ele('c', { r: '' + el, i: '' + key })
+          
+    return cc.end()
+    
 class Style
 
   numberFormats: {
@@ -491,7 +525,7 @@ class Style
   font2id: (font)->
     font or= {}
     font.bold or= '-'
-    font.iter or= '-'
+    font.iter or= font.italic or '-'
     font.sz or= '11'
     font.color or= '-'
     font.name or= 'Calibri'
@@ -598,10 +632,10 @@ class Style
       e = fonts.ele('font')
       e.ele('b') if o.bold isnt '-'
       e.ele('i') if o.iter isnt '-'
-      e.ele('u') if o.iter isnt '-'
-      e.ele('strike') if o.iter isnt '-'
-      e.ele('outline') if o.iter isnt '-'
-      e.ele('shadow') if o.iter isnt '-'
+      e.ele('u') if o.underline isnt '-'
+      e.ele('strike') if o.strike isnt '-'
+      e.ele('outline') if o.outline isnt '-'
+      e.ele('shadow') if o.shadow isnt '-'
 
       e.ele('sz', {val: o.sz})
       e.ele('color', {rgb: o.color}) if o.color isnt '-'
@@ -679,7 +713,7 @@ class Style
         ea = e.ele('alignment', {
           textRotation: (if o.rotate is '-' then '0' else o.rotate),
           horizontal: (if o.align is '-' then 'left' else o.align),
-          vertical: (if o.valign is '-' then 'top' else o.valign)
+          vertical: (if o.valign is '-' then 'bottom' else o.valign)
         })
         ea.att('wrapText', '1') if o.wrap isnt '-'
     ss.ele('cellStyles', {count: '1'}).ele('cellStyle', {name: 'Normal', xfId: '0', builtinId: '0'})
@@ -699,6 +733,7 @@ class Workbook
     @wb = new XlWorkbook(@)
     @re = new XlRels(@)
     @st = new Style(@)
+    @cc = new CalcChain(@)
 
   createSheet: (name, cols, rows) ->
     sheet = new Sheet(@, name, cols, rows)
@@ -748,6 +783,8 @@ class Workbook
       zip.file('xl/worksheets/sheet' + (i + 1) + '.xml', @sheets[i].toxml())
     # 7 - build xl/styles.xml
     zip.file('xl/styles.xml', @st.toxml())
+    # 8 - build xl/calcChain.xml
+    zip.file('xl/calcChain.xml', @cc.toxml())
     cb null, zip
 
   cancel: () ->
